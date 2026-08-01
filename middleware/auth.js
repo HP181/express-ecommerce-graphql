@@ -27,7 +27,8 @@ export const getUser = async (token) => {
   if (!jwks) return null
 
   try {
-    const { payload } = await jwtVerify(token, jwks, { issuer: ISSUER })
+    // audience check skipped — ID tokens have client_id as audience, access tokens have 'cognito'
+    const { payload } = await jwtVerify(token, jwks, { issuer: ISSUER, algorithms: ['RS256'] })
     console.log('Token verified — user:', payload.email || payload.sub)
     return payload
   } catch (err) {
