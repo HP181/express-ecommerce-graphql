@@ -1,5 +1,5 @@
 import { config } from 'dotenv'
-config({ path: './.env.config' })
+config({ path: '../.env.config' })
 
 import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
@@ -72,38 +72,38 @@ const seedDB = async () => {
     await Promise.all([User.deleteMany(), Product.deleteMany(), Order.deleteMany()])
     console.log('Cleared existing data')
 
-    const createdUsers    = await User.insertMany(users)
+    // const createdUsers    = await User.insertMany(users)
     const createdProducts = await Product.insertMany(products)
-    console.log(`Inserted ${createdUsers.length} users and ${createdProducts.length} products`)
+    // console.log(`Inserted ${createdUsers.length} users and ${createdProducts.length} products`)
 
-    const john    = createdUsers[1]
-    const iphone  = createdProducts[0]
-    const macbook = createdProducts[2]
-    const yoga    = createdProducts[17]
+    // const john    = createdUsers[1]
+    // const iphone  = createdProducts[0]
+    // const macbook = createdProducts[2]
+    // const yoga    = createdProducts[17]
 
-    await Order.insertMany([
-      {
-        user: john._id,
-        items: [
-          { product: iphone._id,  name: iphone.name,  quantity: 1, price: iphone.price,  image: iphone.image },
-          { product: yoga._id,    name: yoga.name,    quantity: 2, price: yoga.price,    image: yoga.image },
-        ],
-        shippingAddress: { address: '123 Main St', city: 'New York', postalCode: '10001', country: 'USA' },
-        totalAmount: iphone.price + yoga.price * 2,
-        status: 'delivered',
-        isPaid: true,
-        paidAt: new Date(),
-      },
-      {
-        user: john._id,
-        items: [
-          { product: macbook._id, name: macbook.name, quantity: 1, price: macbook.price, image: macbook.image },
-        ],
-        shippingAddress: { address: '123 Main St', city: 'New York', postalCode: '10001', country: 'USA' },
-        totalAmount: macbook.price,
-        status: 'processing',
-      },
-    ])
+    // await Order.insertMany([
+    //   {
+    //     user: john._id,
+    //     items: [
+    //       { product: iphone._id,  name: iphone.name,  quantity: 1, price: iphone.price,  image: iphone.image },
+    //       { product: yoga._id,    name: yoga.name,    quantity: 2, price: yoga.price,    image: yoga.image },
+    //     ],
+    //     shippingAddress: { address: '123 Main St', city: 'New York', postalCode: '10001', country: 'USA' },
+    //     totalAmount: iphone.price + yoga.price * 2,
+    //     status: 'delivered',
+    //     isPaid: true,
+    //     paidAt: new Date(),
+    //   },
+    //   {
+    //     user: john._id,
+    //     items: [
+    //       { product: macbook._id, name: macbook.name, quantity: 1, price: macbook.price, image: macbook.image },
+    //     ],
+    //     shippingAddress: { address: '123 Main St', city: 'New York', postalCode: '10001', country: 'USA' },
+    //     totalAmount: macbook.price,
+    //     status: 'processing',
+    //   },
+    // ])
 
     console.log('\n✅  Database seeded successfully!\n')
     console.log('Admin  →  admin@shop.com  /  admin123')
