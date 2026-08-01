@@ -1,30 +1,41 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 
-const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID
-const REGION       = process.env.COGNITO_REGION
+// Build these lazily inside the function so env vars are guaranteed loaded
+let JWKS   = null
+let ISSUER = null
 
-// Cognito publishes its public keys here — jose fetches and caches them
-const JWKS = createRemoteJWKSet(
-  new URL(`https://cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}/.well-known/jwks.json`)
-)
+function getJWKS() {
+  if (!JWKS) {
+    const region     = process.env.COGNITO_REGION
+    const userPoolId = process.env.COGNITO_USER_POOL_ID
 
-const ISSUER = `https://cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}`
+    if (!region || !userPoolId) {
+      console.error('Missing COGNITO_REGION or COGNITO_USER_POOL_ID env vars')
+      return null
+    }
+
+    ISSUER = `https://cognito-idp.${region}.amazonaws.com/${userPoolId}`
+    JWKS   = createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks.json`))
+  }
+  return JWKS
+}
 
 export const getUser = async (token) => {
   if (!token) return null
-  try {
-    // Verify the token signature and expiry against Cognito's public keys
-    const { payload } = await jwtVerify(token, JWKS, { issuer: ISSUER })
 
-    // Return the decoded token payload — contains sub, email, cognito:groups, etc.
+  const jwks = getJWKS()
+  if (!jwks) return null
+
+  try {
+    const { payload } = await jwtVerify(token, jwks, { issuer: ISSUER })
+    console.log('Token verified — user:', payload.email || payload.sub)
     return payload
-  } catch {
+  } catch (err) {
+    console.error('Token verification failed:', err.message)
     return null
   }
 }
 
-// Helper used in resolvers to check if the user is admin
-// Either via Cognito group OR matching the ADMIN_EMAIL env var
 export const isAdmin = (user) =>
   user?.['cognito:groups']?.includes('admin') ||
   user?.email === process.env.ADMIN_EMAIL
