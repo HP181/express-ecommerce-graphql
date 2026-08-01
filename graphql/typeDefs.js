@@ -2,10 +2,11 @@ const typeDefs = `#graphql
 
   scalar Date
 
-  # User info derived from the Cognito token — not stored in MongoDB
+  # User — saved to MongoDB on first Cognito login
   type User {
     id: ID!
     email: String!
+    name: String
     role: String!
   }
 
@@ -83,6 +84,7 @@ const typeDefs = `#graphql
 
   type Query {
     me: User
+    users: [User!]!
     product(id: ID!): Product
     products(category: String, search: String, minPrice: Float, maxPrice: Float): [Product!]!
     categories: [String!]!
