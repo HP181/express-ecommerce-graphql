@@ -33,6 +33,7 @@ const startServer = async () => {
     cors({
       origin: process.env.CLIENT_URL || 'http://localhost:5173',
       credentials: true,
+      allowedHeaders: ['Content-Type', 'Authorization'],
     }),
     bodyParser.json(),
     expressMiddleware(server, {
