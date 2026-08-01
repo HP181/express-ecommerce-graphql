@@ -4,7 +4,6 @@ config({ path: './.env.config' })
 import http from 'http'
 import express from 'express'
 import cors from 'cors'
-import cookieParser from 'cookie-parser'
 import bodyParser from 'body-parser'
 import { ApolloServer } from '@apollo/server'
 import { expressMiddleware } from '@apollo/server/express4'
@@ -35,13 +34,13 @@ const startServer = async () => {
       origin: process.env.CLIENT_URL || 'http://localhost:5173',
       credentials: true,
     }),
-    cookieParser(),
     bodyParser.json(),
     expressMiddleware(server, {
-      context: async ({ req, res }) => {
-        const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '')
+      context: async ({ req }) => {
+        // Frontend sends: Authorization: Bearer <cognito_access_token>
+        const token = req.headers.authorization?.replace('Bearer ', '')
         const user = await getUser(token)
-        return { user, req, res }
+        return { user }
       },
     })
   )

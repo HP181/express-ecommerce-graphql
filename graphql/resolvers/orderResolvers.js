@@ -1,4 +1,5 @@
 import { GraphQLError } from 'graphql'
+import { isAdmin } from '../../middleware/auth.js'
 import Order from '../../models/Order.js'
 import Product from '../../models/Product.js'
 
@@ -6,22 +7,24 @@ const orderResolvers = {
   Query: {
     order: async (_, { id }, { user }) => {
       if (!user) throw new GraphQLError('Not authenticated', { extensions: { code: 'UNAUTHENTICATED' } })
-      const order = await Order.findById(id).populate('user', '-password')
+      const order = await Order.findById(id)
       if (!order) throw new GraphQLError('Order not found', { extensions: { code: 'NOT_FOUND' } })
-      if (order.user._id.toString() !== user._id.toString() && user.role !== 'admin')
+      // Allow access only to the owner or an admin
+      if (order.user !== user.sub && !isAdmin(user))
         throw new GraphQLError('Not authorized', { extensions: { code: 'FORBIDDEN' } })
       return order
     },
 
+    // Only return orders belonging to the logged-in user (matched by Cognito sub)
     myOrders: async (_, __, { user }) => {
       if (!user) throw new GraphQLError('Not authenticated', { extensions: { code: 'UNAUTHENTICATED' } })
-      return await Order.find({ user: user._id }).populate('user', '-password').sort({ createdAt: -1 })
+      return await Order.find({ user: user.sub }).sort({ createdAt: -1 })
     },
 
+    // Admin only — all orders
     orders: async (_, __, { user }) => {
-      if (!user || user.role !== 'admin')
-        throw new GraphQLError('Not authorized', { extensions: { code: 'FORBIDDEN' } })
-      return await Order.find({}).populate('user', '-password').sort({ createdAt: -1 })
+      if (!isAdmin(user)) throw new GraphQLError('Not authorized', { extensions: { code: 'FORBIDDEN' } })
+      return await Order.find({}).sort({ createdAt: -1 })
     },
   },
 
@@ -40,11 +43,11 @@ const orderResolvers = {
           throw new GraphQLError(`Insufficient stock for "${product.name}"`, { extensions: { code: 'BAD_USER_INPUT' } })
 
         orderItems.push({
-          product: product._id,
-          name: product.name,
+          product:  product._id,
+          name:     product.name,
           quantity: item.quantity,
-          price: product.price,
-          image: product.image,
+          price:    product.price,
+          image:    product.image,
         })
 
         totalAmount += product.price * item.quantity
@@ -52,13 +55,18 @@ const orderResolvers = {
         await product.save()
       }
 
-      const order = await Order.create({ user: user._id, items: orderItems, shippingAddress, totalAmount })
-      return await Order.findById(order._id).populate('user', '-password')
+      // Store Cognito sub as user ID and email for display
+      return await Order.create({
+        user:            user.sub,
+        userEmail:       user.email,
+        items:           orderItems,
+        shippingAddress,
+        totalAmount,
+      })
     },
 
     updateOrderStatus: async (_, { id, status }, { user }) => {
-      if (!user || user.role !== 'admin')
-        throw new GraphQLError('Not authorized', { extensions: { code: 'FORBIDDEN' } })
+      if (!isAdmin(user)) throw new GraphQLError('Not authorized', { extensions: { code: 'FORBIDDEN' } })
 
       const update = { status }
       if (status === 'delivered') {
@@ -66,14 +74,13 @@ const orderResolvers = {
         update.paidAt = new Date()
       }
 
-      const order = await Order.findByIdAndUpdate(id, update, { new: true }).populate('user', '-password')
+      const order = await Order.findByIdAndUpdate(id, update, { new: true })
       if (!order) throw new GraphQLError('Order not found', { extensions: { code: 'NOT_FOUND' } })
       return order
     },
 
     deleteOrder: async (_, { id }, { user }) => {
-      if (!user || user.role !== 'admin')
-        throw new GraphQLError('Not authorized', { extensions: { code: 'FORBIDDEN' } })
+      if (!isAdmin(user)) throw new GraphQLError('Not authorized', { extensions: { code: 'FORBIDDEN' } })
       const order = await Order.findByIdAndDelete(id)
       if (!order) throw new GraphQLError('Order not found', { extensions: { code: 'NOT_FOUND' } })
       return true

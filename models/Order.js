@@ -10,8 +10,9 @@ const orderItemSchema = new mongoose.Schema({
 
 const orderSchema = new mongoose.Schema(
   {
-    user:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    items: [orderItemSchema],
+    user:      { type: String, required: true },  // Cognito sub (unique user ID)
+    userEmail: { type: String, default: '' },      // stored for display in admin
+    items:     [orderItemSchema],
     shippingAddress: {
       address:    String,
       city:       String,

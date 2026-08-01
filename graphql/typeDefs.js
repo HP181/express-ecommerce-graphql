@@ -2,22 +2,16 @@ const typeDefs = `#graphql
 
   scalar Date
 
+  # User info derived from the Cognito token — not stored in MongoDB
   type User {
     id: ID!
-    name: String!
     email: String!
     role: String!
-    createdAt: Date!
-  }
-
-  type AuthPayload {
-    token: String!
-    user: User!
   }
 
   type Review {
     id: ID!
-    user: ID!
+    user: String!
     name: String!
     rating: Int!
     comment: String!
@@ -55,7 +49,8 @@ const typeDefs = `#graphql
 
   type Order {
     id: ID!
-    user: User!
+    user: String!
+    userEmail: String
     items: [OrderItem!]!
     shippingAddress: ShippingAddress
     totalAmount: Float!
@@ -63,17 +58,6 @@ const typeDefs = `#graphql
     isPaid: Boolean!
     paidAt: Date
     createdAt: Date!
-  }
-
-  input RegisterInput {
-    name: String!
-    email: String!
-    password: String!
-  }
-
-  input LoginInput {
-    email: String!
-    password: String!
   }
 
   input ProductInput {
@@ -99,7 +83,6 @@ const typeDefs = `#graphql
 
   type Query {
     me: User
-    users: [User!]!
     product(id: ID!): Product
     products(category: String, search: String, minPrice: Float, maxPrice: Float): [Product!]!
     categories: [String!]!
@@ -109,9 +92,6 @@ const typeDefs = `#graphql
   }
 
   type Mutation {
-    register(input: RegisterInput!): AuthPayload!
-    login(input: LoginInput!): AuthPayload!
-    logout: Boolean!
     createProduct(input: ProductInput!): Product!
     updateProduct(id: ID!, input: ProductInput!): Product!
     deleteProduct(id: ID!): Boolean!
