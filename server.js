@@ -1,31 +1,27 @@
 import { config } from 'dotenv'
-config({ path: './.env.config' })
+config({ path: './.env.config' }) // only used locally; Vercel uses dashboard env vars
 
-import http from 'http'
 import express from 'express'
 import cors from 'cors'
 import bodyParser from 'body-parser'
 import { ApolloServer } from '@apollo/server'
 import { expressMiddleware } from '@apollo/server/express4'
-import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer'
 import connectDB from './config/db.js'
 import typeDefs from './graphql/typeDefs.js'
 import resolvers from './graphql/resolvers/index.js'
 import { getUser } from './middleware/auth.js'
 
-const startServer = async () => {
-  await connectDB()
+const app = express()
 
-  const app = express()
-  const httpServer = http.createServer(app)
+// Run once — shared across serverless invocations (Vercel reuses warm instances)
+const initPromise = (async () => {
+  await connectDB()
 
   const server = new ApolloServer({
     typeDefs,
     resolvers,
-    plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
     introspection: true,
   })
-
   await server.start()
 
   app.use(
@@ -38,18 +34,26 @@ const startServer = async () => {
     bodyParser.json(),
     expressMiddleware(server, {
       context: async ({ req }) => {
-        // Frontend sends: Authorization: Bearer <cognito_access_token>
         const token = req.headers.authorization?.replace('Bearer ', '')
         const user = await getUser(token)
         return { user }
       },
     })
   )
+})()
 
-  const PORT = process.env.PORT || 5000
-  httpServer.listen(PORT, () => {
-    console.log(`Server ready at http://localhost:${PORT}/graphql`)
-  })
+// ── Vercel export ─────────────────────────────────────────────────────────────
+// Vercel calls this function for every request instead of running a long-lived server
+export default async function handler(req, res) {
+  await initPromise  // wait for DB + Apollo to be ready (instant on warm starts)
+  app(req, res)
 }
 
-startServer().catch(console.error)
+// ── Local dev ─────────────────────────────────────────────────────────────────
+// On Vercel, NODE_ENV is 'production' so this block never runs
+if (process.env.NODE_ENV !== 'production') {
+  initPromise.then(() => {
+    const PORT = process.env.PORT || 5000
+    app.listen(PORT, () => console.log(`Server ready at http://localhost:${PORT}/graphql`))
+  }).catch(console.error)
+}
